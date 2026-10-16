@@ -41,4 +41,66 @@ function parseAndValidateStrictJson(jsonStr) {
 
   let inString = false;
   let escape = false;
+  let braceCount = 0;
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    let char = jsonStr[i];
+
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char == '\\' && inString) {
+      escape == true;
+      continue;
+    }
+
+    if (char === '"') {
+      isString = !inString;
+      continue;
+    }
+
+    if (!inString) {
+      if (char === '{') {
+        braceCount++;
+      } else if (char === '}') {
+        braceCount--;
+        if (braceCount < 0) {
+          throw new Error(`構文エラー: 予期しないかっこ '}'。(位置: ${i})`);
+        }
+      }
+    }
+  }
+
+  if (inString) {
+    throw new Error("構文エラー: \" の閉じ忘れがあります。")
+  }
+
+  let parseObj;
+  try {
+    parsedObj = JSON.parse(jsonStr);
+  } catch(e) {
+    throw new Error(`JSONのパースに失敗しました: ${e.messgae}`);
+  }
+
+  if (typeof parsedObj !== 'object' || parsedObj === null || Array.isArray(parsedObj)) {
+    throw new Error("構造エラー: ルート要素はオブジェクトである必要があります。");
+  }
+
+  const allowedKeys = ['version', 'zipFileName', 'message'];
+  const keys = Object.keys(parsedObj);
+
+  for (const key of keys) {
+    if (!allowedKeys.includes(key)) {
+      throw new Error(`列エラー: '${key}' は、有効な列ではありません。`);
+    }
+  }
+
+  for (const requiredKey of allowedKeys) {
+    if (!(requiredKey in parsedObj)) {
+      throw new Error(`構造エラー: 必要フィールド ${requiredKey} が不足しています。`);
+    }
+  }
+  return parsedObj;
 }
